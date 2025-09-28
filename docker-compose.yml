@@ -1,52 +1,89 @@
+# Docker Compose file version
 version: "3.9"
+
+# Define all the services (containers) that make up the application
 services:
+  # --- INFRASTRUCTURE SERVICES ---
+
+  # Zookeeper: Required by Kafka for managing cluster state and coordination.
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.2
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - "2181:2181"
+      - "2181:2181" # Expose Zookeeper port (mainly for debugging)
 
+  # Kafka: The event streaming platform for asynchronous communication between services.
   kafka:
     image: confluentinc/cp-kafka:7.3.2
-    depends_on: [zookeeper]
+    depends_on: [zookeeper] # Kafka won't start until Zookeeper is running.
     ports:
-      - "9092:9092"
+      - "9092:9092" # Expose Kafka's broker port to the host machine.
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 # Tells Kafka where to find Zookeeper.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092 # How other services inside Docker find Kafka.
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092 # How Kafka listens inside its own container.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # Required for single-node Kafka setup.
 
+  # Postgres: The relational database for storing all persistent data.
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: myvahan
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: myvahan_db
+      POSTGRES_USER: myvahan # Database username
+      POSTGRES_PASSWORD: password # Database password
+      POSTGRES_DB: myvahan_db # Database name
     ports:
-      - "5432:5432"
+      - "5432:5432" # Expose the standard Postgres port to the host.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data # Persists database data even if the container is removed.
 
+  # --- APPLICATION SERVICES ---
+
+  # API Gateway: The single entry point for all frontend clients (HTTP/JSON).
+  # Translates HTTP requests into internal gRPC calls.
+  gateway:
+    build: ./gateway
+    ports:
+      - "8080:8080" # Exposes the main public-facing HTTP port.
+    depends_on: [auth-service, ride-service] # Must wait for the services it calls.
+    environment:
+      # Addresses for the internal gRPC services.
+      - AUTH_SERVICE_ADDR=auth-service:50051
+      - RIDE_SERVICE_ADDR=ride-service:50052
+
+  # Auth Service: Handles user registration, login, and JWT management (gRPC).
   auth-service:
     build: ./services/auth-service
     depends_on: [kafka, postgres]
     environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
       - KAFKA_BROKER=kafka:9092
       - JWT_SECRET=supersecretkey
     ports:
-      - "50051:50051"
+      - "50051:50051" # Exposes the internal gRPC port for this service.
 
+  # Ride Service: Handles the initial ride request logic (gRPC).
   ride-service:
     build: ./services/ride-service
     depends_on: [kafka, postgres]
     environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
       - KAFKA_BROKER=kafka:9092
     ports:
-      - "50052:50052"
+      - "50052:50052" # Exposes the internal gRPC port.
 
+  # Matching Service: A background worker that listens to Kafka for new ride requests
+  # and finds a suitable driver.
+  matching-service:
+    build: ./services/matching-service
+    depends_on: [kafka, postgres]
+    environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
+      - KAFKA_BROKER=kafka:9092
+    # No ports needed as this is a background worker, not a server.
+
+# Define a named volume for persisting PostgreSQL data.
 volumes:
   pgdata:
