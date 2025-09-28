@@ -1,0 +1,20 @@
+syntax = "proto3";
+package ride;
+
+service RideService {
+  rpc RequestRide (RideRequest) returns (RideResponse);
+}
+
+message RideRequest {
+  string passengerId = 1;
+  double pickupLat = 2;
+  double pickupLng = 3;
+  double dropLat = 4;
+  double dropLng = 5;
+}
+
+message RideResponse {
+  string status = 1;
+  string rideId = 2;
+  string message = 3;
+}
