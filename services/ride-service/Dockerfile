@@ -4,17 +4,22 @@ FROM node:18
 # Set working directory inside container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first (for caching npm install)
-COPY package*.json ./
+# --- FIX APPLIED HERE ---
+# Since the context is the project root, we must provide the full path to the files.
+COPY services/ride-service/package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy all source code into container
-COPY . .
+# Copy the shared 'proto' directory from the root context.
+COPY proto ./proto
 
-# Expose gRPC port (ride-service listens on 50052)
+# Copy all the source code FROM the ride-service directory INTO the container's WORKDIR.
+COPY services/ride-service/. .
+
+# Expose gRPC port
 EXPOSE 50052
 
 # Default command to run the server
 CMD ["node", "src/server.js"]
+

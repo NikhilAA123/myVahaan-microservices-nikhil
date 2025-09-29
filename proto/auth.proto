@@ -14,7 +14,7 @@ message RegisterRequest {
 }
 
 message LoginRequest {
-  string phone = 1;
+  string email = 1; // Changed from phone to email to match our login logic
   string password = 2;
 }
 

@@ -4,17 +4,22 @@ FROM node:18
 # Set working directory inside container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first
-COPY package*.json ./
+# --- THIS IS THE FIX ---
+# Since the context is the project root, we need to specify the path to the package files.
+COPY gateway/package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy all source code into container
-COPY . .
+# Copy the shared 'proto' directory from the root context.
+COPY proto ./proto
+
+# Copy all the source code FROM the gateway directory INTO the container's WORKDIR.
+COPY gateway/. .
 
 # Expose the gateway's HTTP port
 EXPOSE 8080
 
 # Default command to run the server
 CMD ["node", "src/index.js"]
+

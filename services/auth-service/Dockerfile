@@ -4,17 +4,22 @@ FROM node:18
 # Set working directory inside container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first (for caching npm install)
-COPY package*.json ./
+# --- FIX APPLIED HERE ---
+# Since the context is the project root, we need to specify the path to the package files.
+COPY services/auth-service/package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy all source code into container
-COPY . .
+# Copy the shared 'proto' directory from the root context.
+COPY proto ./proto
 
-# Expose gRPC port (auth-service listens on 50051)
+# Copy all the source code FROM the auth-service directory INTO the container's WORKDIR.
+COPY services/auth-service/. .
+
+# Expose gRPC port
 EXPOSE 50051
 
 # Default command to run the server
 CMD ["node", "src/server.js"]
+
