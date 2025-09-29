@@ -8,15 +8,38 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: "ride-matchers" });
-const producer = kafka.producer(); // We'll need this to send the next event
+const producer = kafka.producer();
 
+// --- Utility function for creating a delay ---
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Main function to connect to Kafka and run the consumer.
+ * This function includes a robust retry loop for the initial connection.
+ */
 const main = async () => {
-  await consumer.connect();
-  await producer.connect();
-  await consumer.subscribe({ topic: "ride_requests", fromBeginning: true });
+  // --- Connection Retry Loop ---
+  let connected = false;
+  while (!connected) {
+    try {
+      await consumer.connect();
+      await producer.connect();
+      connected = true; // If connection succeeds, exit the loop
+      console.log("✅ Matching service: Connected to Kafka successfully.");
+    } catch (error) {
+      console.error(
+        "❌ Matching service: Failed to connect to Kafka. Retrying in 5 seconds...",
+        error.message
+      );
+      await sleep(5000); // Wait for 5 seconds before trying again
+    }
+  }
 
+  // --- Subscribe to the topic once connected ---
+  await consumer.subscribe({ topic: "ride_requests", fromBeginning: true });
   console.log("✅ Matching service is listening for ride requests...");
 
+  // --- Run the consumer to process messages ---
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       const request = JSON.parse(message.value.toString());
@@ -30,12 +53,9 @@ const main = async () => {
       `);
 
       // --- Core Matching Logic (MVP) ---
-      // 1. Query the database to find available drivers near the pickup location.
-      //    (We will implement the DB logic in the next step)
       console.log("[Matching Service] Searching for available drivers...");
-      const fakeDriverId = "driver-abc-123"; // Placeholder
+      const fakeDriverId = "driver-abc-123"; // Placeholder for DB query
 
-      // 2. If a driver is found, produce a new event to assign the ride.
       const assignmentPayload = {
         rideId: request.rideId,
         driverId: fakeDriverId,
@@ -54,7 +74,19 @@ const main = async () => {
   });
 };
 
+// --- Graceful Shutdown ---
+const shutdown = async () => {
+  console.log("Shutting down matching service...");
+  await consumer.disconnect();
+  await producer.disconnect();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+// --- Start the Service ---
 main().catch((error) => {
-  console.error("Error in matching service:", error);
+  console.error("Critical error in matching service:", error);
   process.exit(1);
 });
