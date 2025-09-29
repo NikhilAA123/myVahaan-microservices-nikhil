@@ -2,40 +2,46 @@ require("dotenv").config();
 const path = require("path");
 const grpc = require("@grpc/grpc-js");
 const protoLoader = require("@grpc/proto-loader");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const { Kafka } = require("kafkajs");
 const User = require("./models/user.model");
 const { hashPassword, comparePassword } = require("./utils/hash.util");
+const { Kafka } = require("kafkajs");
+const jwt = require("jsonwebtoken");
 
-// --- THIS IS THE FINAL FIX ---
-// This path logic tells Node.js to look for the 'proto' directory
-// relative to the current file's location inside the container's /app directory.
 const PROTO_PATH = path.join(__dirname, "..", "proto", "auth.proto");
-
 const packageDef = protoLoader.loadSync(PROTO_PATH);
 const authProto = grpc.loadPackageDefinition(packageDef).auth;
 
-// Kafka init
 const kafka = new Kafka({
-  brokers: [process.env.KAFKA_BROKER || "kafka:9092"],
+  brokers: [process.env.KAFKA_BROKER || "kafka:29092"],
+  clientId: "auth-service",
 });
 const producer = kafka.producer();
 
 async function initKafka() {
-  await producer.connect();
-  console.log("✅ Auth-service: Kafka producer connected");
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      await producer.connect();
+      console.log("✅ Auth-service: Kafka producer connected");
+      return;
+    } catch (err) {
+      retries--;
+      console.error(
+        `❌ Auth-service: Kafka connection failed. Retries left: ${retries}`
+      );
+      if (retries === 0) {
+        console.error("❌ Auth-service: Could not connect to Kafka. Exiting.");
+        process.exit(1);
+      }
+      await new Promise((res) => setTimeout(res, 5000));
+    }
+  }
 }
-initKafka().catch((err) => {
-  console.error("❌ Auth-service: Kafka init error", err);
-  process.exit(1);
-});
 
 const AuthService = {
   Register: async (call, callback) => {
     try {
       const { name, phone, email, password } = call.request;
-
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
         return callback(null, {
@@ -43,7 +49,6 @@ const AuthService = {
           message: "User with this email already exists.",
         });
       }
-
       const passwordHash = await hashPassword(password);
       const newUser = await User.create({
         name,
@@ -64,8 +69,6 @@ const AuthService = {
       console.log(
         `✅ Auth-service: Produced user_registered event for ${newUser.id}`
       );
-
-      // Don't send token on register, force login for security
       callback(null, {
         status: "OK",
         message: "User registered successfully",
@@ -77,16 +80,13 @@ const AuthService = {
       callback({ code: grpc.status.INTERNAL, details: "Register failed" });
     }
   },
-
   Login: async (call, callback) => {
     try {
-      const { email, password } = call.request; // Corrected to get email from request
+      const { email, password } = call.request;
       const user = await User.findByEmail(email);
-
       if (!user) {
         return callback(null, { status: "ERROR", message: "User not found." });
       }
-
       const isPasswordValid = await comparePassword(
         password,
         user.password_hash
@@ -97,13 +97,11 @@ const AuthService = {
           message: "Invalid password.",
         });
       }
-
       const token = jwt.sign(
         { userId: user.id, role: user.role },
         process.env.JWT_SECRET || "supersecretkey",
         { expiresIn: "1h" }
       );
-
       callback(null, {
         status: "OK",
         message: "Logged in successfully",
@@ -117,7 +115,8 @@ const AuthService = {
   },
 };
 
-function main() {
+async function main() {
+  await initKafka();
   const server = new grpc.Server();
   server.addService(authProto.AuthService.service, AuthService);
   const bindAddr = `0.0.0.0:50051`;
@@ -126,10 +125,8 @@ function main() {
     grpc.ServerCredentials.createInsecure(),
     (err, port) => {
       if (err) {
-        console.error("❌ Auth-service: gRPC server error:", err);
-        return;
+        return console.error("❌ Auth-service: gRPC server error:", err);
       }
-      server.start();
       console.log(`✅ Auth service gRPC listening on ${bindAddr}`);
     }
   );
