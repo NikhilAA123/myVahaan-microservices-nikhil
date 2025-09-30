@@ -113,6 +113,40 @@ const AuthService = {
       callback({ code: grpc.status.INTERNAL, details: "Login failed" });
     }
   },
+  ValidateToken: (call, callback) => {
+    try {
+      const { token } = call.request;
+
+      if (!token) {
+        return callback(null, {
+          isValid: false,
+          userId: "",
+          role: "",
+          error: "Token not provided",
+        });
+      }
+
+      const decodedPayload = jwt.verify(
+        token,
+        process.env.JWT_SECRET || "supersecretkey"
+      );
+
+      callback(null, {
+        isValid: true,
+        userId: decodedPayload.userId,
+        role: decodedPayload.role,
+        error: "",
+      });
+    } catch (err) {
+      console.error("❌ Auth-service: Invalid token:", err.message);
+      callback(null, {
+        isValid: false,
+        userId: "",
+        role: "",
+        error: "Invalid or expired token",
+      });
+    }
+  },
 };
 
 async function main() {

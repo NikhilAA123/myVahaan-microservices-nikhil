@@ -23,10 +23,18 @@ const authClient = new authProto.AuthService(
   grpc.credentials.createInsecure()
 );
 
+// --- THIS IS THE NEW PART ---
+// 1. Import the middleware "factory function". This is the blueprint for our bouncer.
+const authMiddlewareFactory = require("./middleware/authMiddleware");
+// 2. Create our actual "bouncer" instance by giving it the tool it needs (the gRPC client).
+const authMiddleware = authMiddlewareFactory(authClient);
+
 // --- API Routes ---
-const authRoutes = require("./routes/authRoutes");
-// This line "injects" the authClient tool into the router.
-app.use("/api/auth", authRoutes(authClient));
+// 3. Import the routes "factory function".
+const authRoutesFactory = require("./routes/authRoutes");
+// 4. Create our router, giving it BOTH the gRPC client and our new bouncer.
+const authRoutes = authRoutesFactory(authClient, authMiddleware);
+app.use("/api/auth", authRoutes);
 
 // --- Root Route for Sanity Check ---
 app.get("/", (req, res) => {

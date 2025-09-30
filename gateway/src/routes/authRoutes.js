@@ -1,15 +1,14 @@
 const express = require("express");
 const router = express.Router();
 
-// This function receives the gRPC client ("the tool") from index.js.
-module.exports = function (authClient) {
+// --- THIS IS THE FIX ---
+// The module now accepts BOTH the client and the middleware.
+module.exports = function (authClient, authMiddleware) {
+  // --- PUBLIC ROUTES (No bouncer) ---
   router.post("/register", (req, res) => {
     const { name, phone, email, password } = req.body;
-
-    // Now, authClient is guaranteed to be a valid gRPC client.
     authClient.Register({ name, phone, email, password }, (err, response) => {
       if (err || !response) {
-        // Also check if response is null
         console.error("❌ Gateway: gRPC Error during Register:", err);
         return res
           .status(500)
@@ -42,6 +41,22 @@ module.exports = function (authClient) {
         res.status(401).json(response);
       }
     });
+  });
+
+  // --- PROTECTED ROUTES ("VIP Room") ---
+
+  /**
+   * @route   GET /me
+   * @desc    Get the profile of the currently logged-in user
+   * @access  Private (Requires JWT)
+   */
+  // Now, 'authMiddleware' is a valid function that has been passed in.
+  router.get("/me", authMiddleware, (req, res) => {
+    if (req.user) {
+      res.status(200).json(req.user);
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
+    }
   });
 
   return router;

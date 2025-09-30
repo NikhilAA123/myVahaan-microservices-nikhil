@@ -1,9 +1,12 @@
 syntax = "proto3";
+
 package auth;
 
 service AuthService {
-  rpc Register (RegisterRequest) returns (AuthResponse);
-  rpc Login (LoginRequest) returns (AuthResponse);
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  // --- THIS IS THE NEW PART ---
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
 message RegisterRequest {
@@ -14,7 +17,7 @@ message RegisterRequest {
 }
 
 message LoginRequest {
-  string email = 1; // Changed from phone to email to match our login logic
+  string email = 1; // Changed from phone to email for consistency
   string password = 2;
 }
 
@@ -23,4 +26,16 @@ message AuthResponse {
   string message = 2;
   string token = 3;
   string userId = 4;
+}
+
+// --- NEW MESSAGES FOR VALIDATION ---
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool isValid = 1;
+  string userId = 2;
+  string role = 3;
+  string error = 4; // Will contain an error message if isValid is false
 }
