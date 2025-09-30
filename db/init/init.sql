@@ -1,15 +1,38 @@
+-- This script is run automatically by Postgres on its first startup.
+-- It sets up the entire database schema needed for the application.
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TYPE ride_status AS ENUM ('requested', 'accepted', 'in_progress', 'completed', 'cancelled');
+
+-- This table is for both passengers and drivers.
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('passenger', 'driver', 'admin')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    phone TEXT,
+    password_hash TEXT NOT NULL,
+    role TEXT CHECK (role IN ('passenger','driver')) NOT NULL DEFAULT 'passenger',
+    created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Optional: You can add an index for faster email lookups
-CREATE INDEX idx_users_email ON users(email);
+-- --- THIS IS THE MISSING PART ---
+-- This table will store the details for every ride taken.
+CREATE TABLE rides (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    passenger_id UUID REFERENCES users(id) NOT NULL,
+    driver_id UUID REFERENCES users(id),
+    pickup_lat DOUBLE PRECISION NOT NULL,
+    pickup_lng DOUBLE PRECISION NOT NULL,
+    drop_lat DOUBLE PRECISION NOT NULL,
+    drop_lng DOUBLE PRECISION NOT NULL,
+    fare_amount NUMERIC(10,2),
+    status ride_status DEFAULT 'requested',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
--- You can add more tables here in the future
+-- You can add the other tables from our design here as well...
+-- CREATE TABLE vehicles (...)
+-- CREATE TABLE ride_location_updates (...)
+ 

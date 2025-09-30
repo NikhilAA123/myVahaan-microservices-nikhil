@@ -1,11 +1,13 @@
 syntax = "proto3";
+
 package ride;
 
 service RideService {
-  rpc RequestRide (RideRequest) returns (RideResponse);
+  rpc RequestRide(RideRequest) returns (RideResponse);
 }
 
 message RideRequest {
+  // --- THIS IS THE NEW, CRUCIAL FIELD ---
   string passengerId = 1;
   double pickupLat = 2;
   double pickupLng = 3;
