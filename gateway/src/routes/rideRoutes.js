@@ -20,11 +20,9 @@ module.exports = function (rideClient, authMiddleware) {
       (err, response) => {
         if (err || !response) {
           console.error("❌ Gateway: gRPC Error during RequestRide:", err);
-          return res
-            .status(500)
-            .json({
-              message: "Internal server error or ride service unavailable",
-            });
+          return res.status(500).json({
+            message: "Internal server error or ride service unavailable",
+          });
         }
         res.status(response.status === "OK" ? 201 : 400).json(response);
       }

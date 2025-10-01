@@ -1,15 +1,18 @@
 require("dotenv").config();
 const { Kafka } = require("kafkajs");
+const Driver = require("./models/driver.model");
 
-// --- Kafka Consumer Setup ---
+// --- THIS IS THE FIX: The "Ingredient List" ---
+// We must create the Kafka instance, consumer, and producer here
+// in the global scope so all our functions can access them.
 const kafka = new Kafka({
   brokers: [process.env.KAFKA_BROKER || "kafka:29092"],
   clientId: "matching-service",
 });
-
 const consumer = kafka.consumer({ groupId: "ride-matchers" });
 const producer = kafka.producer();
 
+// This function now correctly uses the 'consumer' and 'producer' defined above.
 async function connectWithRetry() {
   let retries = 5;
   while (retries > 0) {
@@ -39,43 +42,50 @@ const main = async () => {
   await connectWithRetry();
   await consumer.subscribe({ topic: "ride_requests", fromBeginning: true });
 
+  console.log("⏳ Waiting for Kafka to stabilize before consuming...");
+  await new Promise((res) => setTimeout(res, 5000));
+
   console.log("✅ Matching service is listening for ride requests...");
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
-      const request = JSON.parse(message.value.toString());
-
-      // --- THIS IS THE FIX ---
-      // We are now reading the flat, snake_case properties directly from the message,
-      // which matches the data format coming from the 'rides' table in Postgres.
-      console.log(`
-      --------------------
-      [Matching Service] Received a new ride request:
-      Ride ID: ${request.id}
-      Passenger ID: ${request.passenger_id}
-      Pickup Location: ${request.pickup_lat}, ${request.pickup_lng}
-      --------------------
-      `);
-
-      // --- Core Matching Logic (MVP) ---
-      console.log("[Matching Service] Searching for available drivers...");
-      const fakeDriverId = "driver-abc-123"; // Placeholder for now
-
-      // Produce a new event to assign the ride.
-      const assignmentPayload = {
-        rideId: request.id,
-        driverId: fakeDriverId,
-        assignedAt: new Date().toISOString(),
-      };
-
-      await producer.send({
-        topic: "driver_assignments",
-        messages: [{ value: JSON.stringify(assignmentPayload) }],
-      });
-
+      const rideRequest = JSON.parse(message.value.toString());
       console.log(
-        `[Matching Service] Assigned ride ${request.id} to driver ${fakeDriverId}`
+        `[Matching Service] Received a new ride request: ${rideRequest.id}`
       );
+
+      // Look for a real driver in the database.
+      console.log(
+        "[Matching Service] Searching for an available driver in the database..."
+      );
+      const availableDriver = await Driver.findAvailableDriver();
+
+      if (availableDriver) {
+        // If a driver is found, assign them the ride.
+        console.log(
+          `[Matching Service] Found available driver: ${availableDriver.name} (${availableDriver.id})`
+        );
+
+        const assignmentPayload = {
+          rideId: rideRequest.id,
+          driverId: availableDriver.id,
+          assignedAt: new Date().toISOString(),
+        };
+
+        await producer.send({
+          topic: "driver_assignments",
+          messages: [{ value: JSON.stringify(assignmentPayload) }],
+        });
+
+        console.log(
+          `[Matching Service] Assigned ride ${rideRequest.id} to driver ${availableDriver.id}`
+        );
+      } else {
+        // If no drivers are available, log it.
+        console.log(
+          `[Matching Service] No available drivers found for ride ${rideRequest.id}.`
+        );
+      }
     },
   });
 };
