@@ -41,7 +41,7 @@ async function initKafka() {
 const AuthService = {
   Register: async (call, callback) => {
     try {
-      const { name, phone, email, password } = call.request;
+      const { name, phone, email, password, role = "passenger" } = call.request;
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
         return callback(null, {
@@ -55,7 +55,7 @@ const AuthService = {
         email,
         phone,
         passwordHash,
-        role: "passenger",
+        role,
       });
 
       await producer.send({
