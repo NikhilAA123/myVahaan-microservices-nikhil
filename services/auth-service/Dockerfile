@@ -4,8 +4,7 @@ FROM node:18
 # Set working directory inside container
 WORKDIR /app
 
-# --- FIX APPLIED HERE ---
-# Since the context is the project root, we need to specify the path to the package files.
+# The context is the project root (.), so we must provide the full path to the files.
 COPY services/auth-service/package*.json ./
 
 # Install dependencies
@@ -17,9 +16,5 @@ COPY proto ./proto
 # Copy all the source code FROM the auth-service directory INTO the container's WORKDIR.
 COPY services/auth-service/. .
 
-# Expose gRPC port
-EXPOSE 50051
-
 # Default command to run the server
 CMD ["node", "src/server.js"]
-

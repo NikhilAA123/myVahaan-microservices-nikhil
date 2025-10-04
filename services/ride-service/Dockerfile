@@ -4,8 +4,7 @@ FROM node:18
 # Set working directory inside container
 WORKDIR /app
 
-# --- FIX APPLIED HERE ---
-# Since the context is the project root, we must provide the full path to the files.
+# The context is the project root (.), so we must provide the full path to the files.
 COPY services/ride-service/package*.json ./
 
 # Install dependencies
@@ -17,9 +16,8 @@ COPY proto ./proto
 # Copy all the source code FROM the ride-service directory INTO the container's WORKDIR.
 COPY services/ride-service/. .
 
-# Expose gRPC port
+# Expose gRPC port (ride-service listens on 50052)
 EXPOSE 50052
 
 # Default command to run the server
 CMD ["node", "src/server.js"]
-

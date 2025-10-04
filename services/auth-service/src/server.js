@@ -41,6 +41,7 @@ async function initKafka() {
 const AuthService = {
   Register: async (call, callback) => {
     try {
+      console.log("Auth-service received Register request:", call.request);
       const { name, phone, email, password, role = "passenger" } = call.request;
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
