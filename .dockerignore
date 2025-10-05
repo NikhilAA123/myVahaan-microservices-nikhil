@@ -1,0 +1,9 @@
+# Ignore node_modules folders, as they will be installed inside the container
+**/node_modules
+
+# Ignore git directory
+.git
+
+# Ignore local environment files
+.env
+*/.env
