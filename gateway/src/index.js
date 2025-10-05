@@ -20,36 +20,33 @@ app.use(express.json());
 
 // --- gRPC Client Setup ---
 const authPackageDef = protoLoader.loadSync(AUTH_PROTO_PATH);
+// --- THIS IS THE FIX ---
+// The variable name is now correct: 'authPackageDef'
 const authProto = grpc.loadPackageDefinition(authPackageDef).auth;
 const authClient = new authProto.AuthService(
   AUTH_SERVICE_ADDR,
   grpc.credentials.createInsecure()
 );
 
-// --- THIS IS NEW: We create the client for the ride-service ---
 const ridePackageDef = protoLoader.loadSync(RIDE_PROTO_PATH);
 const rideProto = grpc.loadPackageDefinition(ridePackageDef).ride;
 const rideClient = new rideProto.RideService(
   RIDE_SERVICE_ADDR,
   grpc.credentials.createInsecure()
 );
-// --- THIS IS THE NEW PART ---
-// 1. Import the middleware "factory function". This is the blueprint for our bouncer.
+
+// --- Middleware Setup ---
 const authMiddlewareFactory = require("./middleware/authMiddleware");
-// 2. Create our actual "bouncer" instance by giving it the tool it needs (the gRPC client).
 const authMiddleware = authMiddlewareFactory(authClient);
 
 // --- API Routes ---
-// 3. Import the routes "factory function".
 const authRoutesFactory = require("./routes/authRoutes");
-// 4. Create our router, giving it BOTH the gRPC client and our new bouncer.
 const authRoutes = authRoutesFactory(authClient, authMiddleware);
 app.use("/api/auth", authRoutes);
 
-// --- THIS IS NEW: We "plug in" the new rideRoutes ---
 const rideRoutesFactory = require("./routes/rideRoutes");
 const rideRoutes = rideRoutesFactory(rideClient, authMiddleware);
-app.use("/api/rides", rideRoutes); // Any URL starting with /api/rides will be handled here
+app.use("/api/rides", rideRoutes);
 
 // --- Root Route for Sanity Check ---
 app.get("/", (req, res) => {

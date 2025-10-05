@@ -17,7 +17,7 @@ message RegisterRequest {
 }
 
 message LoginRequest {
-  string email = 1; // Login should use email as it's unique
+  string email = 1;
   string password = 2;
 }
 
