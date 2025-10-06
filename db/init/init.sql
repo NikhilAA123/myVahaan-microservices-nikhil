@@ -11,8 +11,13 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     role TEXT CHECK (role IN ('passenger','driver')) NOT NULL DEFAULT 'passenger',
     is_available BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT now()
+    -- --- THIS IS THE NEW PART ---
+    current_h3_index TEXT, -- Will store the driver's current H3 hexagon ID
+    location_updated_at TIMESTAMPTZ,
+    -- --------------------------
+
 );
+CREATE INDEX idx_users_h3_index ON users(current_h3_index);
 
 CREATE TABLE rides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
