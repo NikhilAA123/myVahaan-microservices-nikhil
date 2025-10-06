@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package vehicle;
+
+service VehicleService {
+  // A streaming RPC for a driver to continuously send their location
+  rpc UpdateLocation(stream LocationUpdate) returns (UpdateResponse);
+}
+
+message LocationUpdate {
+  string driverId = 1;
+  string h3Index = 2; // The driver's app will send the H3 index directly
+  int64 timestamp = 3;
+}
+
+message UpdateResponse {
+  string status = 1; // e.g., "OK"
+}
