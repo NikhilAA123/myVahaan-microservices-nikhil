@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package notification;
+
+service NotificationService {
+  // A simple RPC to send a notification to a specific user
+  rpc SendNotification(NotificationRequest) returns (NotificationResponse);
+}
+
+message NotificationRequest {
+  string userId = 1;
+  string message = 2;
+}
+
+message NotificationResponse {
+  string status = 1; // e.g., "OK" or "ERROR"
+  string messageId = 2; // An ID from the notification provider
+}

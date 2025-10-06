@@ -73,7 +73,6 @@ const AuthService = {
       callback(null, {
         status: "OK",
         message: "User registered successfully",
-        token: "",
         userId: newUser.id,
       });
     } catch (err) {

@@ -95,6 +95,21 @@ services:
       - KAFKA_BROKER=kafka:29092
       - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
 
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    # It depends on Kafka to be healthy before it starts.
+    # We add postgres as well, because in the future it will need it to look up user details.
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
+
   # Matching Service: Consumes ride requests and finds drivers.
   matching-service:
     build:
