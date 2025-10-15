@@ -2,6 +2,11 @@ syntax = "proto3";
 
 package vehicle;
 
+// --- THIS IS THE FIX ---
+// This line tells the Go protoc compiler what the package name and import path
+// for the generated Go code should be.
+option go_package = "./;vehicle";
+
 service VehicleService {
   // A streaming RPC for a driver to continuously send their location
   rpc UpdateLocation(stream LocationUpdate) returns (UpdateResponse);
