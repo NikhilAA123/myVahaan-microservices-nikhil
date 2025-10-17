@@ -9,7 +9,7 @@ const VEHICLE_SERVICE_ADDR = "localhost:50053";
 
 // --- IMPORTANT: PASTE YOUR DRIVER'S ID HERE ---
 // Get this ID from the response when you register a new driver.
-const DRIVER_ID = "YOUR_DRIVER_ID_HERE";
+const DRIVER_ID = "10fa631a-2297-4a49-83d2-a2809756e2cc";
 // -----------------------------------------
 
 if (DRIVER_ID === "YOUR_DRIVER_ID_HERE") {
@@ -41,7 +41,7 @@ const stream = client.UpdateLocation((err, response) => {
 const locations = [
   { lat: 12.9716, lng: 77.5946 }, // Cubbon Park
   { lat: 12.9759, lng: 77.5921 }, // Vidhana Soudha
-  { lat: 12.9797, lng: 77.5970 }, // Bangalore Palace
+  { lat: 12.9797, lng: 77.597 }, // Bangalore Palace
   { lat: 12.9507, lng: 77.5848 }, // Lalbagh Botanical Garden
 ];
 let locationIndex = 0;
@@ -51,9 +51,7 @@ const interval = setInterval(() => {
   const currentLocation = locations[locationIndex];
   const h3Index = h3.latLngToCell(currentLocation.lat, currentLocation.lng, 9);
 
-  console.log(
-    `Sending update: Driver ${DRIVER_ID} is at H3 Index ${h3Index}`
-  );
+  console.log(`Sending update: Driver ${DRIVER_ID} is at H3 Index ${h3Index}`);
 
   stream.write({
     driverId: DRIVER_ID,
