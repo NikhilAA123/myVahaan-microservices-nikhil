@@ -36,13 +36,23 @@ async function connectWithRetry() {
 const main = async () => {
   await connectWithRetry();
 
-  // This consumer subscribes to the 'driver_assignments' topic
   await consumer.subscribe({
     topic: "driver_assignments",
     fromBeginning: true,
   });
 
-  console.log("✅ Notification-service is listening for driver assignments...");
+  // --- THIS IS THE FIX ---
+  // We add a short delay here. This gives the Kafka broker a few extra seconds
+  // to finish its internal startup, like electing group coordinators,
+  // before our consumer tries to join a group. This prevents the crash.
+  console.log(
+    "⏳ Notification-service: Waiting for Kafka to stabilize before consuming..."
+  );
+  await new Promise((res) => setTimeout(res, 5000)); // 5-second stabilization delay
+
+  console.log(
+    "✅ Notification-service is now listening for driver assignments..."
+  );
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
@@ -55,12 +65,6 @@ const main = async () => {
       Driver ID: ${assignment.driverId}
       --------------------
       `);
-
-      // --- This is where the real notification logic would go ---
-      // 1. Fetch the passenger's details (e.g., their push notification token) from the database using the rideId.
-      // 2. Fetch the driver's details (e.g., their name and car model) from the database using the driverId.
-      // 3. Format a message: "Your driver, Ravi (Honda City), is on the way!"
-      // 4. Send the message using a push notification service (like Firebase) or an SMS service (like Twilio).
 
       console.log(
         `[Notification Service] SIMULATING: Sending push notification for ride ${assignment.rideId} to passenger.`

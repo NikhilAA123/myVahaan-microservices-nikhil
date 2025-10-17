@@ -1,19 +1,13 @@
 # No version tag needed for modern Docker Compose
 services:
   # --- INFRASTRUCTURE SERVICES ---
-
-  # Zookeeper: Manages Kafka's cluster state.
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.2
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-      # Performance Tune: Increase the session timeout to prevent premature disconnections.
       ZOOKEEPER_SESSION_TIMEOUT: "60000"
-    ports:
-      - "2181:2181"
 
-  # Kafka: The event streaming platform.
   kafka:
     image: confluentinc/cp-kafka:7.3.2
     depends_on:
@@ -23,21 +17,18 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      # Performance Tune: Increase the session timeout to match Zookeeper's.
       KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: "60000"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-    # Robust Healthcheck: Gives Kafka ample time to start up before other services depend on it.
     healthcheck:
       test: ["CMD", "cub", "kafka-ready", "-b", "kafka:29092", "1", "20"]
       interval: 20s
       timeout: 15s
       retries: 10
 
-  # Postgres: The relational database.
   postgres:
     image: postgres:15
     environment:
@@ -56,34 +47,31 @@ services:
       retries: 5
 
   # --- APPLICATION SERVICES ---
-
-  # API Gateway: The single entry point for all external requests.
   gateway:
     build:
-      context: . # Build context is the project root
+      context: .
       dockerfile: gateway/Dockerfile
     ports:
       - "8080:8080"
     depends_on:
-      # Waits for the services to start, not necessarily become healthy.
       auth-service: { condition: service_started }
       ride-service: { condition: service_started }
+    environment:
+      - AUTH_SERVICE_ADDR=auth-service:50051
+      - RIDE_SERVICE_ADDR=ride-service:50052
 
-  # Auth Service: Handles all user authentication and authorization.
   auth-service:
     build:
       context: .
       dockerfile: services/auth-service/Dockerfile
-    # Waits for Kafka and Postgres to be fully 'healthy' before starting.
     depends_on:
       kafka: { condition: service_healthy }
       postgres: { condition: service_healthy }
     environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
       - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
       - JWT_SECRET=supersecretkey
 
-  # Ride Service: Handles ride creation and event production.
   ride-service:
     build:
       context: .
@@ -92,25 +80,9 @@ services:
       kafka: { condition: service_healthy }
       postgres: { condition: service_healthy }
     environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
       - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
 
-  notification-service:
-    build:
-      context: .
-      dockerfile: services/notification-service/Dockerfile
-    # It depends on Kafka to be healthy before it starts.
-    # We add postgres as well, because in the future it will need it to look up user details.
-    depends_on:
-      kafka:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    environment:
-      - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
-
-  # Matching Service: Consumes ride requests and finds drivers.
   matching-service:
     build:
       context: .
@@ -119,19 +91,35 @@ services:
       kafka: { condition: service_healthy }
       postgres: { condition: service_healthy }
     environment:
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
       - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
+
+  # --- THIS IS THE FIX ---
+  # Re-adding the notification-service to our master blueprint
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
+
   vehicle-service:
     build:
       context: .
       dockerfile: services/vehicle-service/Dockerfile
     depends_on:
       postgres:
-        condition: service_healthy # It needs the database to be ready
+        condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
     ports:
-      - "50053:50053" # Expose its gRPC port for future use by the gateway
-# Named volume for persisting PostgreSQL data.
+      - "50053:50053"
+
 volumes:
   pgdata:
