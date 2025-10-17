@@ -1,4 +1,5 @@
 # --- STAGE 1: The "3D Printing Room" (Generate gRPC Code) ---
+# We start with a specialist image that only has the 'protoc' tool.
 FROM namely/protoc-all:1.51_2 AS proto-builder
 
 # Copy our .proto contracts into the builder's workspace.
@@ -10,6 +11,7 @@ RUN mkdir /gen && protoc -I /defs --go_out=/gen --go-grpc_out=/gen /defs/proto/v
 
 
 # --- STAGE 2: The "Go Workshop" (Compile the Application) ---
+# We now switch to our Go toolkit.
 FROM golang:1.24-alpine AS go-builder
 
 WORKDIR /app
@@ -21,9 +23,9 @@ RUN go mod download
 
 COPY services/vehicle-service/. .
 
-# --- THIS IS THE FIX ---
-# We tell the builder to copy the CONTENTS of the /gen directory (our .go files)
-# from the proto-builder stage into a new /app/proto directory in this stage.
+# --- THIS IS THE KEY ---
+# Copy the auto-generated Go files from our first 'proto-builder' stage.
+# This happens entirely inside the Docker world, avoiding all pathing bugs.
 COPY --from=proto-builder /gen /app/proto
 
 # Compile the final application binary.
