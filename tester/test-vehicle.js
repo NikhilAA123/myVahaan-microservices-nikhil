@@ -4,17 +4,17 @@ const protoLoader = require("@grpc/proto-loader");
 const h3 = require("h3-js");
 
 const PROTO_PATH = path.join(__dirname, "..", "proto", "vehicle.proto");
-// The port we defined for the Go service in docker-compose.yml
 const VEHICLE_SERVICE_ADDR = "localhost:50053";
 
-// --- IMPORTANT: PASTE YOUR DRIVER'S ID HERE ---
-// Get this ID from the response when you register a new driver.
-const DRIVER_ID = "10fa631a-2297-4a49-83d2-a2809756e2cc";
-// -----------------------------------------
+// --- THIS IS THE FIX ---
+// Paste the real driver's ID here, between the quotes.
+const DRIVER_ID = "58635eaa-25e2-4a13-98e4-fb65d6643f77";
+// ---------------------
 
-if (DRIVER_ID === "YOUR_DRIVER_ID_HERE") {
+// This check now correctly looks for the placeholder text.
+if (DRIVER_ID === "YOUR_DRIVER_ID_HERE" || DRIVER_ID === "") {
   console.error(
-    "❌ Please open test-vehicle.js and replace 'YOUR_DRIVER_ID_HERE' with a real driver ID."
+    "❌ Please open test-vehicle.js and replace 'YOUR_DRIVER_ID_HERE' with a real driver ID from your API response."
   );
   process.exit(1);
 }
@@ -37,16 +37,12 @@ const stream = client.UpdateLocation((err, response) => {
   }
 });
 
-// Simulate a driver moving around Bengaluru
+// We are intentionally using a single location for a predictable test.
 const locations = [
   { lat: 12.9716, lng: 77.5946 }, // Cubbon Park
-  { lat: 12.9759, lng: 77.5921 }, // Vidhana Soudha
-  { lat: 12.9797, lng: 77.597 }, // Bangalore Palace
-  { lat: 12.9507, lng: 77.5848 }, // Lalbagh Botanical Garden
 ];
 let locationIndex = 0;
 
-// Every 3 seconds, send a new location update.
 const interval = setInterval(() => {
   const currentLocation = locations[locationIndex];
   const h3Index = h3.latLngToCell(currentLocation.lat, currentLocation.lng, 9);
@@ -62,7 +58,6 @@ const interval = setInterval(() => {
   locationIndex = (locationIndex + 1) % locations.length;
 }, 3000);
 
-// After 20 seconds, the driver "goes offline" and closes the stream.
 setTimeout(() => {
   clearInterval(interval);
   stream.end();
