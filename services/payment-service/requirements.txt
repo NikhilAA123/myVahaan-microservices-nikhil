@@ -1,20 +1,12 @@
-gRPC libraries for Python.
-
-grpcio is the core engine, grpcio-tools provides the compiler for .proto files.
-
+# gRPC libraries for Python
 grpcio
 grpcio-tools
 
-Kafka client for Python to consume events like 'ride_completed'.
-
+# Kafka client for Python
 kafka-python
 
-The most popular PostgreSQL driver for Python.
-
-The 'binary' version comes pre-compiled, which simplifies installation in Docker.
-
+# PostgreSQL driver for Python
 psycopg2-binary
 
-A simple library for reading environment variables from a .env file (for local testing).
-
+# Library for managing environment variables
 python-dotenv

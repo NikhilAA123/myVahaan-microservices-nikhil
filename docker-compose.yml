@@ -108,7 +108,22 @@ services:
     environment:
       - KAFKA_BROKER=kafka:29092
       - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
-
+  # --- THIS IS THE NEW SERVICE ---
+  # Payment Service: A Python service for handling financial transactions.
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    # It depends on Kafka and Postgres to be healthy before it starts.
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - DATABASE_URL=postgresql://myvahan:password@postgres:5432/myvahan_db?sslmode=disable
+    # We will add a port for its gRPC server later
   vehicle-service:
     build:
       context: .
