@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package payment;
+
+// We'll give it a go_package option for consistency, even though we are writing it in Python.
+option go_package = "./;payment";
+
+service PaymentService {
+  // A simple RPC to get the payment status for a specific ride
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse);
+}
+
+message GetPaymentStatusRequest {
+  string rideId = 1;
+}
+
+message GetPaymentStatusResponse {
+  string rideId = 1;
+  string status = 2; // e.g., "PENDING", "PAID", "FAILED"
+  float amount = 3;
+  string currency = 4;
+  string transactionId = 5;
+  int64 paidAt = 6; // Timestamp
+}
